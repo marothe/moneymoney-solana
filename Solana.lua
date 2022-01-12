@@ -67,13 +67,22 @@ function RefreshAccount (account, since)
 
   for address in string.gmatch(solAddresses, '([^,]+)') do
     lamportQuantity = requestLamportQuantityForSolAddress(address)
+    lamportQuantityStaked = requestLamportQuantityStakedForSolAddress(address)
     solQuantity = convertLamportsToSol(lamportQuantity)
+    solQuantityStaked = convertLamportsToSol(lamportQuantityStaked)
 
     s[#s+1] = {
       name = address,
       currency = nil,
       market = "cryptocompare",
       quantity = solQuantity,
+      price = prices["EUR"],
+    }
+    s[#s+1] = {
+      name = address .. " (Staked)",
+      currency = nil,
+      market = "cryptocompare",
+      quantity = solQuantityStaked,
       price = prices["EUR"],
     }
   end
@@ -105,6 +114,26 @@ function requestLamportQuantityForSolAddress(solAddress)
   return json:dictionary()["result"]["value"]
 end
 
+function requestLamportQuantityStakedForSolAddress(solAddress)
+  content = connection:post("https://api.mainnet-beta.solana.com", JSON():set({
+    method = "getProgramAccounts",
+    jsonrpc = "2.0",
+    params = { "Stake11111111111111111111111111111111111111", {
+      encoding = "jsonParsed",
+      commitment = "confirmed",
+      filters = { {
+        memcmp = {
+          bytes = "EjhmR3ZwBmE4dtZQbAno3zuEZ1R3RqaTiiY9JsdtUM1A",
+          offset = 12
+        }
+      } }
+    } },
+    id = "0b3781ff-4d64-4052-815a-2628d0c6e7b7"
+  }):json(), "application/json")
+  json = JSON(content)
+
+  return json:dictionary()["result"][1]["account"]["data"]["parsed"]["info"]["stake"]["delegation"]["stake"]
+end
 
 -- Helper Functions
 function convertLamportsToSol(lamports)
