@@ -67,22 +67,13 @@ function RefreshAccount (account, since)
 
   for address in string.gmatch(solAddresses, '([^,]+)') do
     lamportQuantity = requestLamportQuantityForSolAddress(address)
-    lamportQuantityStaked = requestLamportQuantityStakedForSolAddress(address)
     solQuantity = convertLamportsToSol(lamportQuantity)
-    solQuantityStaked = convertLamportsToSol(lamportQuantityStaked)
 
     s[#s+1] = {
       name = address,
       currency = nil,
       market = "cryptocompare",
       quantity = solQuantity,
-      price = prices["EUR"],
-    }
-    s[#s+1] = {
-      name = address .. " (Staked)",
-      currency = nil,
-      market = "cryptocompare",
-      quantity = solQuantityStaked,
       price = prices["EUR"],
     }
   end
@@ -103,36 +94,29 @@ function requestSolPrice()
 end
 
 function requestLamportQuantityForSolAddress(solAddress)
-  content = connection:post("https://api.mainnet-beta.solana.com", JSON():set({
+  local headers = {["Content-Type"] = "application/json"}
+  local body = JSON():set({
     ["jsonrpc"] = "2.0",
-    ["id"] = "1",
+    ["id"] = 1,
     ["method"] = "getBalance",
-    ["params"] = { solAddress }
-  }):json(), "application/json")
+    ["params"] = {solAddress}
+  }):json()
+  -- Example public node endpoint from a list, replace with an actual URL as needed
+  local publicNodeEndpoint = "https://nd-326-444-187.p2pify.com/9de47db917d4f69168e3fed02217d15b/"
+  content = connection:post(publicNodeEndpoint, body, headers)
   json = JSON(content)
 
-  return json:dictionary()["result"]["value"]
-end
-
-function requestLamportQuantityStakedForSolAddress(solAddress)
-  content = connection:post("https://api.mainnet-beta.solana.com", JSON():set({
-    method = "getProgramAccounts",
-    jsonrpc = "2.0",
-    params = { "Stake11111111111111111111111111111111111111", {
-      encoding = "jsonParsed",
-      commitment = "confirmed",
-      filters = { {
-        memcmp = {
-          bytes = "EjhmR3ZwBmE4dtZQbAno3zuEZ1R3RqaTiiY9JsdtUM1A",
-          offset = 12
-        }
-      } }
-    } },
-    id = "0b3781ff-4d64-4052-815a-2628d0c6e7b7"
-  }):json(), "application/json")
-  json = JSON(content)
-
-  return json:dictionary()["result"][1]["account"]["data"]["parsed"]["info"]["stake"]["delegation"]["stake"]
+  if json:dictionary()["result"] then
+    return json:dictionary()["result"]["value"]
+  else
+    -- Handle the error, e.g., by logging or returning a special value
+    if json:dictionary()["error"] then
+      -- Log the error code and message, or handle it as you see fit
+      print("Error code: " .. json:dictionary()["error"]["code"])
+      print("Error message: " .. json:dictionary()["error"]["message"])
+    end
+    return nil -- or any other error handling
+  end
 end
 
 -- Helper Functions
